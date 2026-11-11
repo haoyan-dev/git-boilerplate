@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Set global Git commit defaults. Repository-local settings can override them.
+# Set Git commit identity globally or for the current project.
 # This does not change GitHub authentication.
 set -euo pipefail
 
 usage() {
-    printf 'Usage: bash %s <haoyan-ts|haoyan-dev>\n' "$0"
+    printf 'Usage: bash %s <haoyan-ts|haoyan-dev> [global|project]\n' "$0"
 }
 
 if [[ $# -eq 1 && ( $1 == --help || $1 == -h ) ]]; then
@@ -12,7 +12,7 @@ if [[ $# -eq 1 && ( $1 == --help || $1 == -h ) ]]; then
     exit 0
 fi
 
-if [[ $# -ne 1 ]]; then
+if [[ $# -lt 1 || $# -gt 2 ]]; then
     usage >&2
     exit 2
 fi
@@ -26,8 +26,24 @@ case "$1" in
         ;;
 esac
 
-git config --global --replace-all user.name "$1"
-git config --global --replace-all user.email "$email"
+scope="${2:-global}"
+case "$scope" in
+    global) config_scope='--global' ;;
+    project)
+        if ! git rev-parse --git-dir >/dev/null 2>&1; then
+            printf 'Project scope requires running inside a Git repository.\n' >&2
+            exit 1
+        fi
+        config_scope='--local'
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac
 
-git config --global --get user.name
-git config --global --get user.email
+git config "$config_scope" --replace-all user.name "$1"
+git config "$config_scope" --replace-all user.email "$email"
+
+git config "$config_scope" --get user.name
+git config "$config_scope" --get user.email
